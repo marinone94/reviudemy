@@ -31,7 +31,7 @@ build_b:
     - echo "This overwrites the globally defined before_script
   script:
     - echo Job build_b running in stage build $cat_var
-  #allow_failure: true
+  allow_failure: true
     
 test_a:
   stage: test
