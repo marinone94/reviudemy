@@ -4,26 +4,31 @@ stages:
   - deploy
   
 image: alpine
+variables:
+  cat_var: "cat"
+  dog_var: "dog"  
 # here we define the global keys
   
 # here we will define jobs
 build_a:
   image: alpine:3.9
+  variables:
+    cat_var: "local cat"
   stage: build
   script:
-    - echo "Job build_a running in stage build"
+    - echo "Job build_a running in stage build with local variable $cat_var"
     
 build_b:
   stage: build
   script:
-    - echo "Job build_b running in stage build"
+    - echo "Job build_b running in stage build with global variable $cat_var"
     
-test_a:
+.test_a:
   stage: test
   script:
     - echo "Job test_a running in stage test"
     
-deploy_a:
+.deploy_a:
   stage: deploy
   script:
     - echo "Job deploy_a running in stage deploy"
