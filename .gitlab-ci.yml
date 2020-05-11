@@ -15,6 +15,6 @@ test_a:
     - echo "Job test_a running in stage test"
     
 deploy_a:
-  stage: Deploy
+  stage: deploy
   script:
     - echo "Job deploy_a running in stage deploy"
