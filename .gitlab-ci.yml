@@ -7,6 +7,11 @@ image: alpine
 variables:
   cat_var: "cat"
   dog_var: "dog"  
+
+before_script:
+  - echo "This runs before the script"
+after_script:
+  - echo "This runs after the script"
 # here we define the global keys
   
 # here we will define jobs
@@ -17,9 +22,13 @@ build_a:
   stage: build
   script:
     - echo Job build_a running in stage build $cat_var
+  after_script:
+    - echo "This overwrites the globally defined after_script
     
 build_b:
   stage: build
+  before_script:
+    - echo "This overwrites the globally defined before_script"
   script:
     - echo Job build_b running in stage build $cat_var
     
