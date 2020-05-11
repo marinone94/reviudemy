@@ -16,12 +16,12 @@ build_a:
     cat_var: "local cat"
   stage: build
   script:
-    - echo "Job build_a running in stage build with local variable $cat_var"
+    - echo Job build_a running in stage build $cat_var
     
 build_b:
   stage: build
   script:
-    - echo "Job build_b running in stage build with global variable $cat_var"
+    - echo Job build_b running in stage build $cat_var
     
 .test_a:
   stage: test
