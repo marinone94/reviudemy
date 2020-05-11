@@ -1,0 +1,20 @@
+stages:
+  - build
+  - test
+  - deploy
+  
+# here we will define jobs
+build_a:
+  stage: build
+  script:
+    - echo "Job build_a running in stage build"
+    
+test_a:
+  stage: test
+  script:
+    - echo "Job test_a running in stage test"
+    
+deploy_a:
+  stage: Deploy
+  script:
+    - echo "Job deploy_a running in stage deploy"
