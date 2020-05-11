@@ -3,11 +3,20 @@ stages:
   - test
   - deploy
   
+image: alpine
+# here we define the global keys
+  
 # here we will define jobs
 build_a:
+  image: alpine:3.9
   stage: build
   script:
     - echo "Job build_a running in stage build"
+    
+build_b:
+  stage: build
+  script:
+    - echo "Job build_b running in stage build"
     
 test_a:
   stage: test
