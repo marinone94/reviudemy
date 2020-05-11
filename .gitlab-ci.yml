@@ -23,12 +23,12 @@ build_a:
   script:
     - echo Job build_a running in stage build $cat_var
   after_script:
-    - echo "This overwrites the globally defined after_script
+    - echo "This overwrites the globally defined after_script"
     
 build_b:
   stage: build
   before_script:
-    - echo "This overwrites the globally defined before_script"
+    - echo "This overwrites the globally defined before_script
   script:
     - echo Job build_b running in stage build $cat_var
     
