@@ -22,6 +22,7 @@ after_script:
     mouse_var: "mouse"
   script:
     - echo Job created using an anchor
+  when: manual
 
 build_a:
   <<: *build_template
@@ -29,7 +30,8 @@ build_a:
 build_b:
   <<: *build_template
   script:
-    - echo Script replaced locally, variable mouse_var $mouse_var from the anchor 
+    - echo Script replaced locally, variable mouse_var $mouse_var from the anchor
+  when: always
     
 test_a:
   stage: test
