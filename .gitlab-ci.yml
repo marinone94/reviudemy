@@ -43,9 +43,9 @@ test_a:
     - if: $run_test =~ '1'
       when: always
     - if: $run_test !~ '1'
-      when: never
+      when: manual
   
-.deploy_a:
+deploy_a:
   stage: deploy
   script:
     - echo "Job deploy_a running in stage deploy"
