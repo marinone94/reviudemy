@@ -43,7 +43,7 @@ test_a:
     - if: $run_test =~ '1'
       when: always
     - if: $run_test !~ '1'
-      when: manual
+      when: never
   
 .deploy_a:
   stage: deploy
