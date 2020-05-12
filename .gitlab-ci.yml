@@ -36,6 +36,7 @@ build_b:
 test_a:
   stage: test
   script:
+    - echo $run_test
     - echo "Job test_a running in stage test"
   rules:
     - if: $run_test =~ '1'
