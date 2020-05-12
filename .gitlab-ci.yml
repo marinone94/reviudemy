@@ -22,7 +22,7 @@ after_script:
   variables:
     mouse_var: "mouse"
   script:
-    - echo Job created using an anchor
+    - echo Job created using an anchor by user $username. The password is $password
   when: manual
 
 build_a:
@@ -34,7 +34,7 @@ build_b:
     - echo Script replaced locally, variable mouse_var $mouse_var from the anchor
   when: always
     
-test_a:
+.test_a:
   stage: test
   script:
     - echo $run_test
@@ -43,7 +43,7 @@ test_a:
     - if: $CI_COMMIT_BRANCH =~ 'dev'
       when: manual
   
-deploy_a:
+.deploy_a:
   stage: deploy
   script:
     - echo "Job deploy_a running in stage deploy"
