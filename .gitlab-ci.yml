@@ -40,9 +40,7 @@ test_a:
     - echo $run_test
     - echo "Job test_a running in stage test"
   rules:
-    - if: $run_test =~ '1'
-      when: always
-    - if: $run_test !~ '1'
+    - if: $CI_COMMIT_BRANCH =~ 'dev'
       when: manual
   
 deploy_a:
