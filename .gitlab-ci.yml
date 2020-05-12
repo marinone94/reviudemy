@@ -15,23 +15,20 @@ after_script:
 # here we define the global keys
   
 # here we will define jobs
-build_a:
+build_template: &build_template
   image: alpine:3.9
   variables:
-    cat_var: "local cat"
-  stage: build
+    mouse_var: "mouse"
   script:
-    - echo Job build_a running in stage build $cat_var
-  after_script:
-    - echo "This overwrites the globally defined after_script"
+    - echo Job created using a template
+
+build_a:
+  <<: *build_template
     
 build_b:
-  stage: build
-  before_script:
-    - echo "This overwrites the globally defined before_script
+  <<: *build_template
   script:
-    - echo Job build_b running in stage build $cat_var
-  allow_failure: true
+    - echo Script replaced locally, variable mouse_var $mouse_var from the template 
     
 test_a:
   stage: test
