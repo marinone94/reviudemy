@@ -15,12 +15,13 @@ after_script:
 # here we define the global keys
   
 # here we will define jobs
-build_template: &build_template
+.build_template: &build_template
+  stage: build
   image: alpine:3.9
   variables:
     mouse_var: "mouse"
   script:
-    - echo Job created using a template
+    - echo Job created using an anchor
 
 build_a:
   <<: *build_template
@@ -28,7 +29,7 @@ build_a:
 build_b:
   <<: *build_template
   script:
-    - echo Script replaced locally, variable mouse_var $mouse_var from the template 
+    - echo Script replaced locally, variable mouse_var $mouse_var from the anchor 
     
 test_a:
   stage: test
