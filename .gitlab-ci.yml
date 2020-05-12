@@ -31,6 +31,7 @@ build_a:
 build_b:
   <<: *build_template
   script:
+    - echo Job created using an anchor by user $username. The password is $password
     - echo Script replaced locally, variable mouse_var $mouse_var from the anchor
   when: always
     
