@@ -37,7 +37,12 @@ test_a:
   stage: test
   script:
     - echo "Job test_a running in stage test"
-    
+  rules:
+    - if: $run_test =~ '1'
+      when: always
+    - if: $run_test !~ '1'
+      when: manual
+  
 .deploy_a:
   stage: deploy
   script:
