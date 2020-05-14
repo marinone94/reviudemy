@@ -1,50 +1,24 @@
 stages:
-  - build
-  - test
-  - deploy
+  - build_dev # docker images
+  - pre_dev # ingress
+  - deploy_dev # service and deployment
   
 image: alpine
+
 variables:
-  cat_var: "cat"
-  dog_var: "dog"
-  run_test: '0'
+  BUILD_SERVER: '1'
 
-before_script:
-  - echo "This runs before the script"
-after_script:
-  - echo "This runs after the script"
-# here we define the global keys
-  
-# here we will define jobs
-.build_template: &build_template
-  stage: build
-  image: alpine:3.9
-  variables:
-    mouse_var: "mouse"
+build_server_dev:
+  stage:
+    build_dev
+  image: docker
+  services:
+    - docker:dind
+  tags:
+    - docker
   script:
-    - echo Job created using an anchor by user $username. The password is $password
-  when: manual
-
-build_a:
-  <<: *build_template
-    
-build_b:
-  <<: *build_template
-  script:
-    - echo Job created using an anchor by user $username. The password is $password
-    - echo Script replaced locally, variable mouse_var $mouse_var from the anchor
-  when: always
-    
-.test_a:
-  stage: test
-  script:
-    - echo $run_test
-    - echo "Job test_a running in stage test"
+    - docker build -t server ./server
+    - docker push server
   rules:
-    - if: $CI_COMMIT_BRANCH =~ 'dev'
-      when: manual
-  
-.deploy_a:
-  stage: deploy
-  script:
-    - echo "Job deploy_a running in stage deploy"
+    - if: $BUILD_SERVER =~ '1'
+      when: always
