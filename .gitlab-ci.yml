@@ -17,10 +17,10 @@ build_server_dev:
   tags:
     - docker
   before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - docker login -u "$DOCKER_REGISTRY_U" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
-    - docker build -t $CI_REGISTRY/$CI_REGISTRY_USER/$CI_PROJECT_NAME/server ./server
-    - docker push $CI_REGISTRY/$CI_REGISTRY_USER/$CI_PROJECT_NAME/server
+    - docker build -t $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server ./server
+    - docker push $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server
   rules:
     - if: $BUILD_SERVER =~ '1'
       when: always
