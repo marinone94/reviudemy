@@ -17,6 +17,9 @@ build_server_dev:
   tags:
     - docker
   before_script:
+    - echo $DOCKER_REGISTRY_U
+    - echo $CI_REGISTRY_PASSWORD
+    - echo $CI_REGISTRY
     - docker login -u "$DOCKER_REGISTRY_U" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
     - docker build -t $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server ./server
