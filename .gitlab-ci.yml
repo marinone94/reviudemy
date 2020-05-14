@@ -19,7 +19,8 @@ build_server_dev:
   before_script:
     - docker login -u "$DOCKER_REGISTRY_U" -p "$DOCKER_REGISTRY_P" $CI_REGISTRY
   script:
-    - docker build -t $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server ./server
+    - docker pull $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server
+    - docker build --cache-from $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server -t $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server ./server
     - docker push $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server
   rules:
     - if: $BUILD_SERVER =~ '1'
