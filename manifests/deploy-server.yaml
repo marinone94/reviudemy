@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deploy-server
+  labels:
+    app: server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: server
+  template:
+    metadata:
+      labels:
+      app: server
+  spec:
+    containers:
+    - name: server
+      image: CI_REGISTRY/DOCKER_REGISTRY_U/CI_PROJECT_NAME/server
+      imagePullPolicy: Always
+      ports:
+      - name: http
+        protocol: TCP
+        containerPort: 5000
+    restartPolicy: Always

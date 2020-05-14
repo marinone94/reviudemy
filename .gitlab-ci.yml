@@ -6,7 +6,10 @@ stages:
 image: alpine
 
 variables:
+  DOMAIN: $KUBE_INGRESS_BASE_DOMAIN
   BUILD_SERVER: '1'
+  DEPLOY_INGRESS: '1'
+  DEPLOY_SERVER: '1'
 
 build_server_dev:
   stage:
@@ -17,6 +20,7 @@ build_server_dev:
   tags:
     - docker
   before_script:
+    - echo $KUBE_INGRESS_BASE_DOMAIN
     - docker login -u "$DOCKER_REGISTRY_U" -p "$DOCKER_REGISTRY_P" $CI_REGISTRY
   script:
     - docker pull $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server
@@ -25,3 +29,45 @@ build_server_dev:
   rules:
     - if: $BUILD_SERVER =~ '1'
       when: always
+    - if: $BUILD_SERVER !~ '1'
+      when: never
+
+deploy_ingress_dev:
+  stage: pre_dev
+  image: 
+    name: lachlanevenson/k8s-kubectl
+    entrypoint: ["/bin/sh", "-c"]
+  environment:
+    name: dev
+    url: $DOMAIN
+  script:
+    - cd manifests/
+    - sed -i "s+DOMAIN+${DOMAIN}+g" ./ingress-server.yaml
+    - kubectl apply -f ingress-server.yaml
+  rules:
+    - if: $DEPLOY_INGRESS =~ '1'
+      when: always
+    - if: $DEPLOY_INGRESS !~ '1'
+      when: never
+
+deploy_server_dev:
+  stage: deploy_dev
+  image: 
+    name: lachlanevenson/k8s-kubectl
+    entrypoint: ["/bin/sh", "-c"]
+  environment:
+    name: dev
+    url: $DOMAIN
+  script:
+    - cd manifests/
+    - sed -i "s+CI_REGISTRY+$CI_REGISTRY+g" ./deploy-server.yaml
+    - sed -i "s+DOCKER_REGISTRY_U+$DOCKER_REGISTRY_U+g" ./deploy-server.yaml
+    - sed -i "s+CI_PROJECT_NAME+$CI_PROJECT_NAME+g" ./deploy-server.yaml
+    - kubectl apply -f svc-server.yaml
+    - kubectl apply -f deploy-server.yaml
+    - kubectl get all
+  rules:
+    - if: $DEPLOY_SERVER =~ '1'
+      when: always
+    - if: $DEPLOY_SERVER !~ '1'
+      when: never
