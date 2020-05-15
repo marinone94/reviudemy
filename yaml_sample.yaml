@@ -1,0 +1,16 @@
+key: value
+
+array:
+  - el1
+  - el2
+  - el3
+
+dict:
+  key1: value1
+  key2: value2
+  dict1:
+    key3: value3
+    array2:
+      - el4
+      - el5
+      - el5
