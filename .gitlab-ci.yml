@@ -1,19 +1,31 @@
 stages:
+  - init # docker registry
   - build_dev # docker images
   - pre_dev # ingress
   - deploy_dev # service and deployment
-  
+
 image: alpine
 
 variables:
   DOMAIN: $KUBE_INGRESS_BASE_DOMAIN
-  BUILD_SERVER: '1'
-  DEPLOY_INGRESS: '1'
-  DEPLOY_SERVER: '1'
+  BUILD_SERVER: "1"
+  DEPLOY_INGRESS: "1"
+  DEPLOY_SERVER: "1"
 
+set_docker_registry:
+  stage: init
+  image:
+    name: lachlanevenson/k8s-kubectl
+    entrypoint: ["/bin/sh", "-c"]
+  environment:
+    name: dev
+    url: $DOMAIN
+  script:
+    - kubectl create secret docker-registry registry-gitlab-key --docker-server=$CI_REGISTRY --docker-username=$DOCKER_REGISTRY_U --docker-password=$DOCKER_REGISTRY_P
+    - . ./manifests/docker-registry-script.txt
+    
 build_server_dev:
-  stage:
-    build_dev
+  stage: build_dev
   image: docker
   services:
     - docker:dind
@@ -34,7 +46,7 @@ build_server_dev:
 
 deploy_ingress_dev:
   stage: pre_dev
-  image: 
+  image:
     name: lachlanevenson/k8s-kubectl
     entrypoint: ["/bin/sh", "-c"]
   environment:
@@ -52,7 +64,7 @@ deploy_ingress_dev:
 
 deploy_server_dev:
   stage: deploy_dev
-  image: 
+  image:
     name: lachlanevenson/k8s-kubectl
     entrypoint: ["/bin/sh", "-c"]
   environment:
