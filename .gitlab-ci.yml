@@ -11,7 +11,7 @@ variables:
   SET_REGISTRY: "0"
   BUILD_SERVER: "0"
   DEPLOY_INGRESS: "1"
-  DEPLOY_SERVER: "0"
+  DEPLOY_SERVER: "1"
 
 set_docker_registry:
   stage: init
