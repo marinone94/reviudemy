@@ -2,6 +2,7 @@ apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: ingress-server
+  namespace: KUBE_NAMESPACE
   labels:
     app: server
   annotations:
@@ -12,7 +13,7 @@ spec:
   - host: DOMAIN
     http:
       paths:
-      - path: /api/(.*)
+      - path: PREFIX/api/(.*)
         backend:
           serviceName: svc-server
           servicePort: 80

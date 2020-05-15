@@ -1,1 +1,1 @@
-kubectl patch serviceaccount default -p '{"imagePullSecrets": [{"name": "registry-gitlab-key"}]}'
+kubectl patch -n KUBE_NAMESPACE serviceaccount default -p '{"imagePullSecrets": [{"name": "registry-gitlab-key"}]}'

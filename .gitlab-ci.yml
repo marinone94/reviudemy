@@ -1,19 +1,24 @@
 stages:
   - init # docker registry
-  - build_dev # docker images
+  - build_dev # build docker images for dev environment
+  - build_staging # build docker images for staging environment
   - pre_dev # ingress
-  - deploy_dev # service and deployment
+  - deploy_dev # service and deployment dev environment
+  - test_dev # here you will add some automatic tests
+  - pre_staging # ingress staging
+  - deploy_staging # service and deployment staging environment
+  - test_staging
 
 image: alpine
 
 variables:
   DOMAIN: $KUBE_INGRESS_BASE_DOMAIN
-  SET_REGISTRY: "0"
+  SET_REGISTRY: "1"
   BUILD_SERVER: "1"
-  DEPLOY_INGRESS: "0"
+  DEPLOY_INGRESS: "1"
   DEPLOY_SERVER: "1"
 
-set_docker_registry:
+.set_docker_registry_anchor: &set_docker_registry_anchor
   stage: init
   image:
     name: lachlanevenson/k8s-kubectl
@@ -22,15 +27,26 @@ set_docker_registry:
     name: dev
     url: $DOMAIN
   script:
-    - kubectl create secret docker-registry registry-gitlab-key --docker-server=$CI_REGISTRY --docker-username=$DOCKER_REGISTRY_U --docker-password=$DOCKER_REGISTRY_P
+    - sed -i "s+KUBE_NAMESPACE+$KUBE_NAMESPACE+g" ./manifests/docker-registry-script.txt
+    - kubectl create -n $KUBE_NAMESPACE secret docker-registry registry-gitlab-key --docker-server=$CI_REGISTRY --docker-username=$DOCKER_REGISTRY_U --docker-password=$DOCKER_REGISTRY_P
     - . ./manifests/docker-registry-script.txt
+  allow_failure: true
   rules:
     - if: $SET_REGISTRY =~ '1'
       when: always
     - if: $SET_REGISTRY !~ '1'
       when: never
 
-build_server_dev:
+set_docker_registry_dev:
+  <<: *set_docker_registry_anchor
+
+set_docker_registry_staging:
+  <<: *set_docker_registry_anchor
+  environment:
+    name: staging
+    url: $DOMAIN
+
+.build_server_anchor: &build_server_anchor
   stage: build_dev
   image: docker
   services:
@@ -38,7 +54,6 @@ build_server_dev:
   tags:
     - docker
   before_script:
-    - echo $KUBE_INGRESS_BASE_DOMAIN
     - docker login -u "$DOCKER_REGISTRY_U" -p "$DOCKER_REGISTRY_P" $CI_REGISTRY
   script:
     - docker pull $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:latest
@@ -46,40 +61,85 @@ build_server_dev:
     - docker push $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:$CI_COMMIT_SHORT_SHA
     - docker tag $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:$CI_COMMIT_SHORT_SHA $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:latest
     - docker push $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:latest
+
+build_server_dev:
+  <<: *build_server_anchor
   rules:
-    - if: $BUILD_SERVER =~ '1'
-      when: always
     - if: $BUILD_SERVER !~ '1'
       when: never
+    - if: $BUILD_SERVER =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
+      when: never
+    - if: $BUILD_SERVER =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
+      when: always
+
+build_server_staging:
+  <<: *build_server_anchor
+  stage:
+    build_staging
+  rules:
+    - if: $BUILD_SERVER !~ '1'
+      when: never
+    - if: $BUILD_SERVER =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
+      when: never
+    - if: $BUILD_SERVER =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
+      when: always
+
+.deploy_ingress_anchor: &deploy_ingress_anchor
+  stage: 
+    pre_dev
+  image:
+    name: lachlanevenson/k8s-kubectl
+    entrypoint: ["/bin/sh", "-c"]
+  variables:
+    ENV: dev
+  environment:
+    name: $ENV
+    url: $DOMAIN
+  script:
+    - cd manifests/
+    - sed -i "s+KUBE_NAMESPACE+${KUBE_NAMESPACE}+g" ./ingress-server.yaml
+    - sed -i "s+DOMAIN+${DOMAIN}+g" ./ingress-server.yaml
+    - sed -i "s+PREFIX+${CI_PROJECT_NAME}/$ENV+g" ./ingress-server.yaml
+    - kubectl apply -f ingress-server.yaml
 
 deploy_ingress_dev:
-  stage: pre_dev
-  image:
-    name: lachlanevenson/k8s-kubectl
-    entrypoint: ["/bin/sh", "-c"]
-  environment:
-    name: dev
-    url: $DOMAIN
-  script:
-    - cd manifests/
-    - sed -i "s+DOMAIN+${DOMAIN}+g" ./ingress-server.yaml
-    - kubectl apply -f ingress-server.yaml
+  <<: *deploy_ingress_anchor
   rules:
-    - if: $DEPLOY_INGRESS =~ '1'
-      when: always
     - if: $DEPLOY_INGRESS !~ '1'
       when: never
+    - if: $DEPLOY_INGRESS =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
+      when: never
+    - if: $DEPLOY_INGRESS =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
+      when: always
 
-deploy_server_dev:
-  stage: deploy_dev
+deploy_ingress_staging:
+  <<: *deploy_ingress_anchor
+  stage:
+    pre_staging
+  variables:
+    ENV: staging
+  rules:
+    - if: $DEPLOY_INGRESS !~ '1'
+      when: never
+    - if: $DEPLOY_INGRESS =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
+      when: never
+    - if: $DEPLOY_INGRESS =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
+      when: always
+
+.deploy_server_anchor: &deploy_server_anchor
+  stage: 
+    deploy_dev
   image:
     name: lachlanevenson/k8s-kubectl
     entrypoint: ["/bin/sh", "-c"]
+  variables:
+    ENV: dev
   environment:
-    name: dev
+    name: $ENV
     url: $DOMAIN
   script:
-    - cd manifests/
+    - cd manifests/ KUBE_NAMESPACE
+    - sed -i "s+KUBE_NAMESPACE+$KUBE_NAMESPACE+g" ./svc-server.yaml
     - sed -i "s+CI_REGISTRY+$CI_REGISTRY+g" ./deploy-server.yaml
     - sed -i "s+DOCKER_REGISTRY_U+$DOCKER_REGISTRY_U+g" ./deploy-server.yaml
     - sed -i "s+CI_PROJECT_NAME+$CI_PROJECT_NAME+g" ./deploy-server.yaml
@@ -87,8 +147,51 @@ deploy_server_dev:
     - kubectl apply -f svc-server.yaml
     - kubectl apply -f deploy-server.yaml
     - kubectl get all
+
+deploy_server_dev:
+  <<: *deploy_server_anchor
   rules:
-    - if: $DEPLOY_SERVER =~ '1'
-      when: always
     - if: $DEPLOY_SERVER !~ '1'
       when: never
+    - if: $DEPLOY_SERVER =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
+      when: never
+    - if: $DEPLOY_SERVER =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
+      when: always
+
+deploy_server_staging:
+  <<: *deploy_server_anchor
+  stage:
+    deploy_staging
+  variables:
+    ENV: staging
+  rules:
+    - if: $DEPLOY_SERVER !~ '1'
+      when: never
+    - if: $DEPLOY_SERVER =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
+      when: never
+    - if: $DEPLOY_SERVER =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
+      when: always
+
+.stop_anchor: &stop_anchor
+  stage:
+    test_dev
+  image:
+    name: lachlanevenson/k8s-kubectl
+    entrypoint: ["/bin/sh", "-c"]
+  variables:
+    GIT_STRATEGY: none
+    ENV: dev
+  environment:
+    name: $ENV
+    action: stop
+  script:
+    - kubectl delete -n $KUBE_NAMESPACE deployments --all
+    - kubectl delete -n $KUBE_NAMESPACE svc --all
+
+stop_dev:
+  <<: *stop_anchor
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ 'master'
+      when: never
+    - if: $CI_COMMIT_BRANCH !~ 'master'
+      when: manual
