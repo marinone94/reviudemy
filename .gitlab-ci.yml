@@ -23,7 +23,6 @@ set_docker_registry:
   script:
     - kubectl create secret docker-registry registry-gitlab-key --docker-server=$CI_REGISTRY --docker-username=$DOCKER_REGISTRY_U --docker-password=$DOCKER_REGISTRY_P
     - . ./manifests/docker-registry-script.txt
-  allow_failure: true
 
 build_server_dev:
   stage: build_dev
