@@ -41,9 +41,11 @@ build_server_dev:
     - echo $KUBE_INGRESS_BASE_DOMAIN
     - docker login -u "$DOCKER_REGISTRY_U" -p "$DOCKER_REGISTRY_P" $CI_REGISTRY
   script:
-    - docker pull $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server
-    - docker build --cache-from $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server -t $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server ./server
-    - docker push $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server
+    - docker pull $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:latest
+    - docker build --cache-from $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server -t $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:$CI_COMMIT_SHORT_SHA ./server
+    - docker push $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:$CI_COMMIT_SHORT_SHA
+    - docker tag $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:$CI_COMMIT_SHORT_SHA $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:latest
+    - docker push $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:latest
   rules:
     - if: $BUILD_SERVER =~ '1'
       when: always
@@ -81,6 +83,7 @@ deploy_server_dev:
     - sed -i "s+CI_REGISTRY+$CI_REGISTRY+g" ./deploy-server.yaml
     - sed -i "s+DOCKER_REGISTRY_U+$DOCKER_REGISTRY_U+g" ./deploy-server.yaml
     - sed -i "s+CI_PROJECT_NAME+$CI_PROJECT_NAME+g" ./deploy-server.yaml
+    - sed -i "s+CI_COMMIT_SHORT_SHA+$CI_COMMIT_SHORT_SHA+g" ./deploy-server.yaml
     - kubectl apply -f svc-server.yaml
     - kubectl apply -f deploy-server.yaml
     - kubectl get all
