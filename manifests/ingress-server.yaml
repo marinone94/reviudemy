@@ -11,7 +11,7 @@ spec:
   - host: DOMAIN
     http:
       paths:
-      - path: api/
+      - path: /api
         backend:
           serviceName: svc-server
           servicePort: 80
