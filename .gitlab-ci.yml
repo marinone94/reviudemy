@@ -99,7 +99,7 @@ build_server_staging:
     - cd manifests/
     - sed -i "s+KUBE_NAMESPACE+${KUBE_NAMESPACE}+g" ./ingress-server.yaml
     - sed -i "s+DOMAIN+${DOMAIN}+g" ./ingress-server.yaml
-    - sed -i "s+PREFIX+${CI_PROJECT_NAME}/$ENV+g" ./ingress-server.yaml
+    - sed -i "s+PREFIX+/${CI_PROJECT_NAME}/$ENV+g" ./ingress-server.yaml
     - kubectl apply -f ingress-server.yaml
 
 deploy_ingress_dev:
