@@ -1,0 +1,4 @@
+{
+    "news_path": "./data/",
+    "newsapi_url": "https://newsapi.org/v2/top-headlines?"
+}
