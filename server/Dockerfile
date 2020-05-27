@@ -6,9 +6,13 @@ COPY ./requirements.txt .
 
 RUN pip install -r requirements.txt
 
+ARG K8S_SECRET_NEWSAPI_KEY
+
 COPY . .
 
 ENV PYTHONUNBUFFERED=1
+
+ENV K8S_SECRET_NEWSAPI_KEY=$K8S_SECRET_NEWSAPI_KEY
 
 EXPOSE 5000
 

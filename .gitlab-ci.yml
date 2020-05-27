@@ -57,7 +57,7 @@ set_docker_registry_staging:
     - docker login -u "$DOCKER_REGISTRY_U" -p "$DOCKER_REGISTRY_P" $CI_REGISTRY
   script:
     - docker pull $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:latest
-    - docker build --cache-from $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server -t $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:$CI_COMMIT_SHORT_SHA ./server
+    - docker build --build-arg K8S_SECRET_NEWSAPI_KEY --cache-from $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server -t $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:$CI_COMMIT_SHORT_SHA ./server
     - docker push $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:$CI_COMMIT_SHORT_SHA
     - docker tag $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:$CI_COMMIT_SHORT_SHA $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:latest
     - docker push $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:latest
