@@ -192,10 +192,10 @@ deploy_server_staging:
     name: lachlanevenson/k8s-kubectl
     entrypoint: ["/bin/sh", "-c"]
   variables:
-    RELEASE: dev
+    ENV: dev
     NUM_REPLICAS: $MONGO_DEV_REPLICAS
   environment:
-    name: $RELEASE
+    name: $ENV
     url: $DOMAIN
   script:
     - cd manifests/
@@ -211,7 +211,7 @@ deploy_server_staging:
 deploy_mongo_dev:
   <<: *deploy_mongo_anchor
   environment:
-    name: dev
+    name: $ENV
     url: $DOMAIN
     on_stop: stop_dev
   rules:
@@ -225,7 +225,7 @@ deploy_mongo_staging:
   stage:
     deploy_staging
   variables:
-    RELEASE: staging
+    ENV: staging
     NUM_REPLICAS: $MONGO_PROD_REPLICAS
   rules:
     - if: $DEPLOY_MONGO =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
