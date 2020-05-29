@@ -44,7 +44,7 @@ class DataHandler:
         # original connection string: "mongodb://mongo-0.mongo,mongo-1.mongo:27017"
         port = self.mongodb_connection_string.split(':')[-1]
         for i in range(n):
-            connection_string = connection_string + "mongo-" + stri(i) + ".mongo,"
+            connection_string = connection_string + "mongo-" + str(i) + ".mongo,"
         connection_string = connection_string[:-1] + ':' + port
         print('DataHandler - New connection string: {}'.format(connection_string))
         self.mongodb_connection_string = connection_string
