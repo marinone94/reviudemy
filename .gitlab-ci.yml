@@ -204,6 +204,7 @@ deploy_server_staging:
     - sed -i "s+NUM_REPLICAS+$NUM_REPLICAS+g" ./deploy-mongo.yaml
     - sed -i "s+ENV+$ENV+g" ./deploy-mongo.yaml
     - kubectl apply -f storage-mongo.yaml
+    - sleep 10
     - kubectl apply -f svc-mongo.yaml
     - kubectl apply -f deploy-mongo.yaml
     - kubectl get all
