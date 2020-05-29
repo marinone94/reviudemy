@@ -1,4 +1,5 @@
 {
     "news_path": "./data/",
-    "newsapi_url": "https://newsapi.org/v2/top-headlines?"
+    "newsapi_url": "https://newsapi.org/v2/top-headlines?",
+    "new_test_cfg_field": "blabla"
 }

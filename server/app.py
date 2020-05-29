@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import time
 import json
+from os import environ
 
 from services.data_handler import DataHandler
 from services.newsapi import NewsAPI
@@ -12,6 +13,12 @@ print('Flask - Creating app.')
 # Load initial configuration
 with open('./cfg/init_cfg.json', 'r') as f:
     init_cfg = json.load(f)
+
+# Check if is running in Docker
+if environ.get('ISDOCKER') != '1':
+    init_cfg['mongodb_connection_string'] = init_cfg['localdb_connection_string']
+else:
+    init_cfg['mongodb_connection_string'] = init_cfg['kubedb_connection_string']
 
 # Initialize the data handler and load the global configuration
 data_handler = DataHandler(init_cfg)
