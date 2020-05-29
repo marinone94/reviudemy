@@ -187,7 +187,7 @@ deploy_server_staging:
 
 .deploy_mongo_anchor: &deploy_mongo_anchor
   stage:
-    dev
+    deploy_dev
   image:
     name: lachlanevenson/k8s-kubectl
     entrypoint: ["/bin/sh", "-c"]
@@ -222,6 +222,8 @@ deploy_mongo_dev:
 
 deploy_mongo_staging:
   <<: *deploy_mongo_anchor
+  stage:
+    deploy_staging
   variables:
     RELEASE: staging
     NUM_REPLICAS: $MONGO_PROD_REPLICAS
