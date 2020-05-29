@@ -1,3 +1,7 @@
 {
-    "local_cfg_path": "./cfg/local_cfg.json"
+    "local_cfg_path": "./cfg/local_cfg.json",
+    "localdb_connection_string": "mongodb://localhost:27017",
+    "kubedb_connection_string": "mongodb://mongo-0.mongo,mongo-1.mongo:27017",
+    "db_name": "reviudemy_db",
+    "use_mongodb": true
 }

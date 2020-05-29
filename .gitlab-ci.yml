@@ -17,6 +17,11 @@ variables:
   BUILD_SERVER: "1"
   DEPLOY_INGRESS: "1"
   DEPLOY_SERVER: "1"
+  DEPLOY_MONGO: "1"
+  SERVER_DEV_REPLICAS: "1"
+  SERVER_PROD_REPLICAS: "2"
+  MONGO_DEV_REPLICAS: "2"
+  MONGO_PROD_REPLICAS: "3"
 
 .set_docker_registry_anchor: &set_docker_registry_anchor
   stage: init
@@ -53,9 +58,14 @@ set_docker_registry_staging:
     - docker:dind
   tags:
     - docker
+  variables:
+    NUM_REPLICAS: $MONGO_DEV_REPLICAS
   before_script:
     - docker login -u "$DOCKER_REGISTRY_U" -p "$DOCKER_REGISTRY_P" $CI_REGISTRY
   script:
+    - mkdir ./server/tmp_manifests
+    - mv ./manifests/deploy-mongo.yaml ./server/tmp_manifests/deploy-mongo.yaml
+    - sed -i "s+NUM_REPLICAS+$NUM_REPLICAS+g" ./server/tmp_manifests/deploy-mongo.yaml
     - docker pull $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:latest
     - docker build --build-arg K8S_SECRET_NEWSAPI_KEY --cache-from $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server -t $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:$CI_COMMIT_SHORT_SHA ./server
     - docker push $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:$CI_COMMIT_SHORT_SHA
@@ -134,6 +144,7 @@ deploy_ingress_staging:
     entrypoint: ["/bin/sh", "-c"]
   variables:
     ENV: dev
+    NUM_REPLICAS: $SERVER_DEV_REPLICAS
   environment:
     name: $ENV
     url: $DOMAIN
@@ -142,6 +153,7 @@ deploy_ingress_staging:
     - sed -i "s+KUBE_NAMESPACE+$KUBE_NAMESPACE+g" ./svc-server.yaml
     - sed -i "s+CI_REGISTRY+$CI_REGISTRY+g" ./deploy-server.yaml
     - sed -i "s+DOCKER_REGISTRY_U+$DOCKER_REGISTRY_U+g" ./deploy-server.yaml
+    - sed -i "s+NUM_REPLICAS+$NUM_REPLICAS+g" ./deploy-server.yaml
     - sed -i "s+CI_PROJECT_NAME+$CI_PROJECT_NAME+g" ./deploy-server.yaml
     - sed -i "s+CI_COMMIT_SHORT_SHA+$CI_COMMIT_SHORT_SHA+g" ./deploy-server.yaml
     - kubectl apply -f svc-server.yaml
@@ -164,12 +176,59 @@ deploy_server_staging:
     deploy_staging
   variables:
     ENV: staging
+    NUM_REPLICAS: $SERVER_PROD_REPLICAS
   rules:
     - if: $DEPLOY_SERVER !~ '1'
       when: never
     - if: $DEPLOY_SERVER =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
       when: never
     - if: $DEPLOY_SERVER =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
+      when: always
+
+.deploy_mongo_anchor: &deploy_mongo_anchor
+  stage:
+    dev
+  image:
+    name: lachlanevenson/k8s-kubectl
+    entrypoint: ["/bin/sh", "-c"]
+  variables:
+    RELEASE: dev
+    NUM_REPLICAS: $MONGO_DEV_REPLICAS
+  environment:
+    name: $RELEASE
+    url: $DOMAIN
+  script:
+    - cd manifests/
+    - sed -i "s+KUBE_NAMESPACE+$KUBE_NAMESPACE+g" ./svc-mongo.yaml
+    - sed -i "s+KUBE_NAMESPACE+$KUBE_NAMESPACE+g" ./deploy-mongo.yaml
+    - sed -i "s+NUM_REPLICAS+$NUM_REPLICAS+g" ./deploy-mongo.yaml
+    - sed -i "s+ENV+$ENV+g" ./deploy-mongo.yaml
+    - kubectl apply -f storage-mongo.yaml
+    - kubectl apply -f svc-mongo.yaml
+    - kubectl apply -f deploy-mongo.yaml
+    - kubectl get all
+
+deploy_mongo_dev:
+  <<: *deploy_mongo_anchor
+  environment:
+    name: dev
+    url: $DOMAIN
+    on_stop: stop_dev
+  rules:
+    - if: $DEPLOY_MONGO =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
+      when: never
+    - if: $DEPLOY_MONGO =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
+      when: always
+
+deploy_mongo_staging:
+  <<: *deploy_mongo_anchor
+  variables:
+    RELEASE: staging
+    NUM_REPLICAS: $MONGO_PROD_REPLICAS
+  rules:
+    - if: $DEPLOY_MONGO =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
+      when: never
+    - if: $DEPLOY_MONGO =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
       when: always
 
 .stop_anchor: &stop_anchor

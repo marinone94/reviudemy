@@ -25,6 +25,7 @@ class NewsAPI:
         url = self.newsapi_url + self._build_url_params(params)
         print('NewsAPI - Getting news from the news API. URL: {}'.format(url))
         api_key = os.environ.get("K8S_SECRET_NEWSAPI_KEY")
+        print('NewsAPI - Loaded news API key: {}'.format(api_key[:5]) + '*'*len(api_key[5:]))
         response = requests.get(url, auth=BearerAuth(api_key))
         if response.status_code != 200:
             return {}, response.status_code
