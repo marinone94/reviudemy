@@ -75,7 +75,10 @@ class DataHandler:
             return self._store_news_to_disk(news, params_string)
 
     def _store_news_to_mongodb(self, news, params_string):
-        response = self.mongodb.news_names.insert_one({'document_name': params_string})
+        # create unique document name
+        filename = params_string + '_' + '-'.join(str(time.ctime()).split()).replace(':','-') + '.json'
+        print('DataHandler - Storing news into document named: {}'.format(filename))
+        response = self.mongodb.news_names.insert_one({'document_name': filename})
         if not response.acknowledged:
             print('DataHandler - Failed to store news names to MongoDB.')
             return 500
