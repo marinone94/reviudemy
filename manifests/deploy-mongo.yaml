@@ -1,3 +1,18 @@
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: KUBE_NAMESPACE-view
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: KUBE_NAMESPACE
+
+---
+
 apiVersion: apps/v1beta1
 kind: StatefulSet
 metadata:
