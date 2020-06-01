@@ -374,8 +374,6 @@ test_staging_manual:
   script:
     - echo "Manual testing staging env"
   rules:
-    - if: ! $CI_MERGE_REQUEST_ID
-      when: never
     - if: $CI_MERGE_REQUEST_ID
       when: manual
 
