@@ -8,15 +8,22 @@ stages:
   - pre_staging # ingress staging
   - deploy_staging # service and deployment staging environment
   - test_staging
+  - pre_prod
+  - deploy_prod
+  - post_prod
 
 image: alpine
 
 variables:
   DOMAIN: $KUBE_INGRESS_BASE_DOMAIN
   SET_REGISTRY: "1"
-  BUILD_SERVER: "1"
   DEPLOY_INGRESS: "1"
   DEPLOY_SERVER: "1"
+  DEPLOY_MONGO: "1"
+  SERVER_DEV_REPLICAS: "1"
+  SERVER_PROD_REPLICAS: "2"
+  MONGO_DEV_REPLICAS: "2"
+  MONGO_PROD_REPLICAS: "3"
 
 .set_docker_registry_anchor: &set_docker_registry_anchor
   stage: init
@@ -46,6 +53,12 @@ set_docker_registry_staging:
     name: staging
     url: $DOMAIN
 
+set_docker_registry_prod:
+  <<: *set_docker_registry_anchor
+  environment:
+    name: prod
+    url: $DOMAIN
+
 .build_server_anchor: &build_server_anchor
   stage: build_dev
   image: docker
@@ -53,11 +66,16 @@ set_docker_registry_staging:
     - docker:dind
   tags:
     - docker
+  variables:
+    NUM_REPLICAS: $MONGO_DEV_REPLICAS
   before_script:
     - docker login -u "$DOCKER_REGISTRY_U" -p "$DOCKER_REGISTRY_P" $CI_REGISTRY
   script:
+    - mkdir ./server/tmp_manifests
+    - mv ./manifests/deploy-mongo.yaml ./server/tmp_manifests/deploy-mongo.yaml
+    - sed -i "s+NUM_REPLICAS+$NUM_REPLICAS+g" ./server/tmp_manifests/deploy-mongo.yaml
     - docker pull $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:latest
-    - docker build --cache-from $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server -t $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:$CI_COMMIT_SHORT_SHA ./server
+    - docker build --build-arg K8S_SECRET_NEWSAPI_KEY --cache-from $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server -t $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:$CI_COMMIT_SHORT_SHA ./server
     - docker push $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:$CI_COMMIT_SHORT_SHA
     - docker tag $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:$CI_COMMIT_SHORT_SHA $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:latest
     - docker push $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:latest
@@ -65,11 +83,11 @@ set_docker_registry_staging:
 build_server_dev:
   <<: *build_server_anchor
   rules:
-    - if: $BUILD_SERVER !~ '1'
+    - if: $DEPLOY_SERVER !~ '1'
       when: never
-    - if: $BUILD_SERVER =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
+    - if: $DEPLOY_SERVER =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
       when: never
-    - if: $BUILD_SERVER =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
+    - if: $DEPLOY_SERVER =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
       when: always
 
 build_server_staging:
@@ -77,11 +95,11 @@ build_server_staging:
   stage:
     build_staging
   rules:
-    - if: $BUILD_SERVER !~ '1'
+    - if: $DEPLOY_SERVER !~ '1'
       when: never
-    - if: $BUILD_SERVER =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
+    - if: $DEPLOY_SERVER =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
       when: never
-    - if: $BUILD_SERVER =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
+    - if: $DEPLOY_SERVER =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
       when: always
 
 .deploy_ingress_anchor: &deploy_ingress_anchor
@@ -97,9 +115,16 @@ build_server_staging:
     url: $DOMAIN
   script:
     - cd manifests/
+    - sed -i "s+EMAIL_ADDRESS+$EMAIL_ADDRESS+g" ./cert-issuer.yaml
+    - sed -i "s+ENV+$ENV+g" ./cert-issuer.yaml
+    - sed -i "s+DOMAIN+$DOMAIN+g" ./certificate.yaml
+    - sed -i "s+ENV+$ENV+g" ./certificate.yaml
+    - kubectl apply -f ./certificate.yaml
+    - kubectl apply -f ./cert-issuer.yaml
     - sed -i "s+KUBE_NAMESPACE+${KUBE_NAMESPACE}+g" ./ingress-server.yaml
     - sed -i "s+DOMAIN+${DOMAIN}+g" ./ingress-server.yaml
     - sed -i "s+PREFIX+/${CI_PROJECT_NAME}/$ENV+g" ./ingress-server.yaml
+    - sed -i "s+ENV+$ENV+g" ./ingress-server.yaml
     - kubectl apply -f ingress-server.yaml
 
 deploy_ingress_dev:
@@ -126,6 +151,24 @@ deploy_ingress_staging:
     - if: $DEPLOY_INGRESS =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
       when: always
 
+deploy_ingress_prod:
+  <<: *deploy_ingress_anchor
+  stage:
+    pre_prod
+  variables:
+    ENV: prod
+  before_script:
+    - sed -i "s+PREFIX+$CI_PROJECT_NAME+g" ./manifests/ingress-server.yaml
+  rules:
+    - if: $DEPLOY_INGRESS !~ '1'
+      when: never
+    - if: $DEPLOY_INGRESS =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
+      when: never
+    - if: $CI_MERGE_REQUEST_ID
+      when: never
+    - if: $DEPLOY_INGRESS =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
+      when: manual
+
 .deploy_server_anchor: &deploy_server_anchor
   stage: 
     deploy_dev
@@ -134,6 +177,7 @@ deploy_ingress_staging:
     entrypoint: ["/bin/sh", "-c"]
   variables:
     ENV: dev
+    NUM_REPLICAS: $SERVER_DEV_REPLICAS
   environment:
     name: $ENV
     url: $DOMAIN
@@ -142,6 +186,7 @@ deploy_ingress_staging:
     - sed -i "s+KUBE_NAMESPACE+$KUBE_NAMESPACE+g" ./svc-server.yaml
     - sed -i "s+CI_REGISTRY+$CI_REGISTRY+g" ./deploy-server.yaml
     - sed -i "s+DOCKER_REGISTRY_U+$DOCKER_REGISTRY_U+g" ./deploy-server.yaml
+    - sed -i "s+NUM_REPLICAS+$NUM_REPLICAS+g" ./deploy-server.yaml
     - sed -i "s+CI_PROJECT_NAME+$CI_PROJECT_NAME+g" ./deploy-server.yaml
     - sed -i "s+CI_COMMIT_SHORT_SHA+$CI_COMMIT_SHORT_SHA+g" ./deploy-server.yaml
     - kubectl apply -f svc-server.yaml
@@ -164,6 +209,7 @@ deploy_server_staging:
     deploy_staging
   variables:
     ENV: staging
+    NUM_REPLICAS: $SERVER_PROD_REPLICAS
   rules:
     - if: $DEPLOY_SERVER !~ '1'
       when: never
@@ -171,6 +217,93 @@ deploy_server_staging:
       when: never
     - if: $DEPLOY_SERVER =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
       when: always
+
+deploy_server_prod:
+  <<: *deploy_server_anchor
+  stage:
+    deploy_prod
+  variables:
+    ENV: prod
+    NUM_REPLICAS: $SERVER_PROD_REPLICAS
+  rules:
+    - if: $DEPLOY_SERVER !~ '1'
+      when: never
+    - if: $DEPLOY_SERVER =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
+      when: never
+    - if: $CI_MERGE_REQUEST_ID
+      when: never
+    - if: $DEPLOY_SERVER =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
+      when: manual
+
+.deploy_mongo_anchor: &deploy_mongo_anchor
+  stage:
+    deploy_dev
+  image:
+    name: lachlanevenson/k8s-kubectl
+    entrypoint: ["/bin/sh", "-c"]
+  variables:
+    ENV: dev
+    NUM_REPLICAS: $MONGO_DEV_REPLICAS
+  environment:
+    name: $ENV
+    url: $DOMAIN
+  script:
+    - cd manifests/
+    - sed -i "s+KUBE_NAMESPACE+$KUBE_NAMESPACE+g" ./svc-mongo.yaml
+    - sed -i "s+KUBE_NAMESPACE+$KUBE_NAMESPACE+g" ./deploy-mongo.yaml
+    - sed -i "s+NUM_REPLICAS+$NUM_REPLICAS+g" ./deploy-mongo.yaml
+    - sed -i "s+ENV+$ENV+g" ./deploy-mongo.yaml
+    - kubectl apply -f storage-mongo.yaml
+    - sleep 10
+    - kubectl apply -f svc-mongo.yaml
+    - kubectl apply -f deploy-mongo.yaml
+    - kubectl get all
+
+deploy_mongo_dev:
+  <<: *deploy_mongo_anchor
+  environment:
+    name: $ENV
+    url: $DOMAIN
+    on_stop: stop_dev
+  rules:
+    - if: $DEPLOY_MONGO !~ '1'
+      when: never
+    - if: $DEPLOY_MONGO =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
+      when: never
+    - if: $DEPLOY_MONGO =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
+      when: always
+
+deploy_mongo_staging:
+  <<: *deploy_mongo_anchor
+  stage:
+    deploy_staging
+  variables:
+    ENV: staging
+    NUM_REPLICAS: $MONGO_PROD_REPLICAS
+  rules:
+    - if: $DEPLOY_MONGO !~ '1'
+      when: never
+    - if: $DEPLOY_MONGO =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
+      when: never
+    - if: $DEPLOY_MONGO =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
+      when: always
+
+deploy_mongo_prod:
+  <<: *deploy_mongo_anchor
+  stage:
+    deploy_prod
+  variables:
+    ENV: prod
+    NUM_REPLICAS: $MONGO_PROD_REPLICAS
+  rules:
+    - if: $DEPLOY_MONGO !~ '1'
+      when: never
+    - if: $DEPLOY_MONGO =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
+      when: never
+    - if: $CI_MERGE_REQUEST_ID
+      when: never
+    - if: $DEPLOY_MONGO =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
+      when: manual
 
 .stop_anchor: &stop_anchor
   stage:
@@ -192,6 +325,22 @@ stop_dev:
   <<: *stop_anchor
   rules:
     - if: $CI_COMMIT_BRANCH =~ 'master'
+      when: never
+    - if: $CI_COMMIT_BRANCH !~ 'master'
+      when: manual
+
+stop_staging:
+  <<: *stop_anchor
+  stage:
+    post_prod
+  environment:
+    name: staging
+    action: stop
+  allow_failure: true 
+  rules:
+    - if: $CI_COMMIT_BRANCH !~ 'master'
+      when: never
+    - if: $CI_MERGE_REQUEST_ID
       when: never
     - if: $CI_COMMIT_BRANCH !~ 'master'
       when: manual
