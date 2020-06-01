@@ -192,7 +192,7 @@ deploy_ingress_prod:
   variables:
     ENV: prod
   before_script:
-    - sed -i "s+PREFIX+$CI_PROJECT_NAME+g" ./manifests/ingress-server.yaml
+    - sed -i "s+PREFIX+/$CI_PROJECT_NAME+g" ./manifests/ingress-server.yaml
   rules:
     - if: $DEPLOY_INGRESS !~ '1'
       when: never
