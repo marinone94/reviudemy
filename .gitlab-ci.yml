@@ -15,7 +15,7 @@ variables:
   DOMAIN: $KUBE_INGRESS_BASE_DOMAIN
   SET_REGISTRY: "0"
   BUILD_SERVER: "1"
-  DEPLOY_INGRESS: "0"
+  DEPLOY_INGRESS: "1"
   DEPLOY_SERVER: "1"
   DEPLOY_MONGO: "1"
   SERVER_DEV_REPLICAS: "1"
@@ -107,9 +107,16 @@ build_server_staging:
     url: $DOMAIN
   script:
     - cd manifests/
+    - sed -i "s+EMAIL_ADDRESS+$EMAIL_ADDRESS+g" ./cert-issuer.yaml
+    - sed -i "s+ENV+$ENV+g" ./cert-issuer.yaml
+    - sed -i "s+DOMAIN+$DOMAIN+g"./certificate.yaml
+    - sed -i "s+ENV+$ENV+g" ./certificate.yaml
+    - kubectl apply -f ./certificate.yaml
+    - kubectl apply -f ./cert-issuer.yaml
     - sed -i "s+KUBE_NAMESPACE+${KUBE_NAMESPACE}+g" ./ingress-server.yaml
     - sed -i "s+DOMAIN+${DOMAIN}+g" ./ingress-server.yaml
     - sed -i "s+PREFIX+/${CI_PROJECT_NAME}/$ENV+g" ./ingress-server.yaml
+    - sed -i "s+ENV+$ENV+g" ./ingress-server.yaml
     - kubectl apply -f ingress-server.yaml
 
 deploy_ingress_dev:

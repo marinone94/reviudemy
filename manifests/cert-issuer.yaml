@@ -1,0 +1,13 @@
+apiVersion: certmanager.k8s.io/v1alpha1
+kind: ClusterIssuer
+metadata:
+  labels:
+    name: letsencrypt-ENV
+  name: letsencrypt-ENV
+spec:
+  acme:
+    email: EMAIL_ADDRESS
+    http01: {}
+    privateKeySecretRef:
+      name: letsencrypt-ENV
+    server: https://acme-v02.api.letsencrypt.org/directory
