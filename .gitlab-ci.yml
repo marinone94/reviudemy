@@ -8,16 +8,18 @@ stages:
   - pre_staging # ingress staging
   - deploy_staging # service and deployment staging environment
   - test_staging
+  - pre_prod
+  - deploy_prod
+  - post_prod
 
 image: alpine
 
 variables:
   DOMAIN: $KUBE_INGRESS_BASE_DOMAIN
-  SET_REGISTRY: "0"
-  BUILD_SERVER: "0"
+  SET_REGISTRY: "1"
   DEPLOY_INGRESS: "1"
-  DEPLOY_SERVER: "0"
-  DEPLOY_MONGO: "0"
+  DEPLOY_SERVER: "1"
+  DEPLOY_MONGO: "1"
   SERVER_DEV_REPLICAS: "1"
   SERVER_PROD_REPLICAS: "2"
   MONGO_DEV_REPLICAS: "2"
@@ -51,6 +53,12 @@ set_docker_registry_staging:
     name: staging
     url: $DOMAIN
 
+set_docker_registry_prod:
+  <<: *set_docker_registry_anchor
+  environment:
+    name: prod
+    url: $DOMAIN
+
 .build_server_anchor: &build_server_anchor
   stage: build_dev
   image: docker
@@ -75,11 +83,11 @@ set_docker_registry_staging:
 build_server_dev:
   <<: *build_server_anchor
   rules:
-    - if: $BUILD_SERVER !~ '1'
+    - if: $DEPLOY_SERVER !~ '1'
       when: never
-    - if: $BUILD_SERVER =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
+    - if: $DEPLOY_SERVER =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
       when: never
-    - if: $BUILD_SERVER =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
+    - if: $DEPLOY_SERVER =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
       when: always
 
 build_server_staging:
@@ -87,11 +95,11 @@ build_server_staging:
   stage:
     build_staging
   rules:
-    - if: $BUILD_SERVER !~ '1'
+    - if: $DEPLOY_SERVER !~ '1'
       when: never
-    - if: $BUILD_SERVER =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
+    - if: $DEPLOY_SERVER =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
       when: never
-    - if: $BUILD_SERVER =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
+    - if: $DEPLOY_SERVER =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
       when: always
 
 .deploy_ingress_anchor: &deploy_ingress_anchor
@@ -143,6 +151,24 @@ deploy_ingress_staging:
     - if: $DEPLOY_INGRESS =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
       when: always
 
+deploy_ingress_prod:
+  <<: *deploy_ingress_anchor
+  stage:
+    pre_prod
+  variables:
+    ENV: prod
+  before_script:
+    - sed -i "s+PREFIX+$CI_PROJECT_NAME+g" ./manifests/ingress-server.yaml
+  rules:
+    - if: $DEPLOY_INGRESS !~ '1'
+      when: never
+    - if: $DEPLOY_INGRESS =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
+      when: never
+    - if: $CI_MERGE_REQUEST_ID
+      when: never
+    - if: $DEPLOY_INGRESS =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
+      when: manual
+
 .deploy_server_anchor: &deploy_server_anchor
   stage: 
     deploy_dev
@@ -192,6 +218,23 @@ deploy_server_staging:
     - if: $DEPLOY_SERVER =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
       when: always
 
+deploy_server_prod:
+  <<: *deploy_server_anchor
+  stage:
+    deploy_prod
+  variables:
+    ENV: prod
+    NUM_REPLICAS: $SERVER_PROD_REPLICAS
+  rules:
+    - if: $DEPLOY_SERVER !~ '1'
+      when: never
+    - if: $DEPLOY_SERVER =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
+      when: never
+    - if: $CI_MERGE_REQUEST_ID
+      when: never
+    - if: $DEPLOY_SERVER =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
+      when: manual
+
 .deploy_mongo_anchor: &deploy_mongo_anchor
   stage:
     deploy_dev
@@ -223,6 +266,8 @@ deploy_mongo_dev:
     url: $DOMAIN
     on_stop: stop_dev
   rules:
+    - if: $DEPLOY_MONGO !~ '1'
+      when: never
     - if: $DEPLOY_MONGO =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
       when: never
     - if: $DEPLOY_MONGO =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
@@ -236,10 +281,29 @@ deploy_mongo_staging:
     ENV: staging
     NUM_REPLICAS: $MONGO_PROD_REPLICAS
   rules:
+    - if: $DEPLOY_MONGO !~ '1'
+      when: never
     - if: $DEPLOY_MONGO =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
       when: never
     - if: $DEPLOY_MONGO =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
       when: always
+
+deploy_mongo_prod:
+  <<: *deploy_mongo_anchor
+  stage:
+    deploy_prod
+  variables:
+    ENV: prod
+    NUM_REPLICAS: $MONGO_PROD_REPLICAS
+  rules:
+    - if: $DEPLOY_MONGO !~ '1'
+      when: never
+    - if: $DEPLOY_MONGO =~ '1' && $CI_COMMIT_BRANCH !~ 'master'
+      when: never
+    - if: $CI_MERGE_REQUEST_ID
+      when: never
+    - if: $DEPLOY_MONGO =~ '1' && $CI_COMMIT_BRANCH =~ 'master'
+      when: manual
 
 .stop_anchor: &stop_anchor
   stage:
@@ -261,6 +325,22 @@ stop_dev:
   <<: *stop_anchor
   rules:
     - if: $CI_COMMIT_BRANCH =~ 'master'
+      when: never
+    - if: $CI_COMMIT_BRANCH !~ 'master'
+      when: manual
+
+stop_staging:
+  <<: *stop_anchor
+  stage:
+    post_prod
+  environment:
+    name: staging
+    action: stop
+  allow_failure: true 
+  rules:
+    - if: $CI_COMMIT_BRANCH !~ 'master'
+      when: never
+    - if: $CI_MERGE_REQUEST_ID
       when: never
     - if: $CI_COMMIT_BRANCH !~ 'master'
       when: manual
