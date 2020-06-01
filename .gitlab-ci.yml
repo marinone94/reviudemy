@@ -1,5 +1,6 @@
 stages:
   - init # docker registry
+  - local_test
   - build_dev # build docker images for dev environment
   - build_staging # build docker images for staging environment
   - pre_dev # ingress
@@ -58,6 +59,39 @@ set_docker_registry_prod:
   environment:
     name: prod
     url: $DOMAIN
+
+.local_test_anchor: &local_test_anchor
+  stage:
+    local_test
+  image: 
+    name: python
+  environment:
+    name: dev
+  script:
+    - cd server/
+    - sed -i "s+true+false+" ./cfg/init_cfg.json
+    - pip install -r requirements.txt
+    - python server.py
+    - sleep 3
+    - python test.py
+    
+local_test_dev:
+  <<: *local_test_anchor
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ 'master'
+      when: never
+    - if: $CI_COMMIT_BRANCH !~ 'master'
+      when: always
+
+local_test_staging:
+  <<: *local_test_anchor
+  environment:
+    name: staging
+  rules:
+    - if: $CI_COMMIT_BRANCH !~ 'master'
+      when: never
+    - if: $CI_COMMIT_BRANCH =~ 'master'
+      when: always
 
 .build_server_anchor: &build_server_anchor
   stage: build_dev
@@ -321,6 +355,28 @@ deploy_mongo_prod:
     - kubectl delete -n $KUBE_NAMESPACE deployments --all
     - kubectl delete -n $KUBE_NAMESPACE svc --all
 
+test_staging_auto:
+  stage:
+    test_staging
+  script:
+    - echo "Automatic testing staging env"
+  rules:
+    - if: $CI_COMMIT_BRANCH !~ 'master'
+      when: never
+    - if: $CI_COMMIT_BRANCH !~ 'master'
+      when: always
+      
+test_staging_manual:
+  stage:
+    test_staging
+  script:
+    - echo "Manual testing staging env"
+  rules:
+    - if: ! $CI_MERGE_REQUEST_ID
+      when: never
+    - if: $CI_MERGE_REQUEST_ID
+      when: manual
+
 stop_dev:
   <<: *stop_anchor
   rules:
@@ -343,4 +399,26 @@ stop_staging:
     - if: $CI_MERGE_REQUEST_ID
       when: never
     - if: $CI_COMMIT_BRANCH !~ 'master'
+      when: manual
+
+update_stable_image:
+  stage:
+    post_prod
+  image: docker
+  services:
+    - docker:dind
+  tags:
+    - docker
+  before_script:
+    - docker login -u "$DOCKER_REGISTRY_U" -p "$DOCKER_REGISTRY_P" $CI_REGISTRY
+  script:
+    - docker pull $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:$CI_COMMIT_SHORT_SHA
+    - docker tag $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:$CI_COMMIT_SHORT_SHA $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:stable
+    - docker push $CI_REGISTRY/$DOCKER_REGISTRY_U/$CI_PROJECT_NAME/server:stable
+  rules:
+    - if: $CI_COMMIT_BRANCH !~ 'master'
+      when: never
+    - if: $CI_MERGE_REQUEST_ID
+      when: never
+    - if: $CI_COMMIT_BRANCH =~ 'master'
       when: manual
