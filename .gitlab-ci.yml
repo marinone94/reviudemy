@@ -29,7 +29,7 @@ variables:
 .set_docker_registry_anchor: &set_docker_registry_anchor
   stage: init
   image:
-    name: lachlanevenson/k8s-kubectl
+    name: lachlanevenson/k8s-kubectl:v1.18.0
     entrypoint: ["/bin/sh", "-c"]
   environment:
     name: dev
@@ -64,14 +64,14 @@ set_docker_registry_prod:
   stage:
     local_test
   image: 
-    name: python
+    name: python:3.7
   environment:
     name: dev
   script:
     - cd server/
     - sed -i "s+true+false+" ./cfg/init_cfg.json
     - pip install -r requirements.txt
-    - python server.py
+    - python server.py &
     - sleep 3
     - python test.py
     
@@ -95,7 +95,7 @@ local_test_staging:
 
 .build_server_anchor: &build_server_anchor
   stage: build_dev
-  image: docker
+  image: docker:19.03.8
   services:
     - docker:dind
   tags:
@@ -140,7 +140,7 @@ build_server_staging:
   stage: 
     pre_dev
   image:
-    name: lachlanevenson/k8s-kubectl
+    name: lachlanevenson/k8s-kubectl:v1.18.0
     entrypoint: ["/bin/sh", "-c"]
   variables:
     ENV: dev
@@ -207,7 +207,7 @@ deploy_ingress_prod:
   stage: 
     deploy_dev
   image:
-    name: lachlanevenson/k8s-kubectl
+    name: lachlanevenson/k8s-kubectl:v1.18.0
     entrypoint: ["/bin/sh", "-c"]
   variables:
     ENV: dev
@@ -273,7 +273,7 @@ deploy_server_prod:
   stage:
     deploy_dev
   image:
-    name: lachlanevenson/k8s-kubectl
+    name: lachlanevenson/k8s-kubectl:v1.18.0
     entrypoint: ["/bin/sh", "-c"]
   variables:
     ENV: dev
@@ -343,7 +343,7 @@ deploy_mongo_prod:
   stage:
     test_dev
   image:
-    name: lachlanevenson/k8s-kubectl
+    name: lachlanevenson/k8s-kubectl:v1.18.0
     entrypoint: ["/bin/sh", "-c"]
   variables:
     GIT_STRATEGY: none
@@ -404,7 +404,7 @@ stop_staging:
 update_stable_image:
   stage:
     post_prod
-  image: docker
+  image: docker:19.03.8
   services:
     - docker:dind
   tags:
