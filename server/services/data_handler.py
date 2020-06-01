@@ -82,7 +82,7 @@ class DataHandler:
         if not response.acknowledged:
             print('DataHandler - Failed to store news names to MongoDB.')
             return 500
-        response = self.mongodb.news.insert_one({'document_name': params_string, 'news': news})
+        response = self.mongodb.news.insert_one({'document_name': filename, 'news': news})
         if response.acknowledged:
             print('DataHandler - News stored successfully to MongoDB.')
             return 200
