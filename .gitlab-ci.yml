@@ -14,10 +14,10 @@ image: alpine
 variables:
   DOMAIN: $KUBE_INGRESS_BASE_DOMAIN
   SET_REGISTRY: "0"
-  BUILD_SERVER: "1"
+  BUILD_SERVER: "0"
   DEPLOY_INGRESS: "1"
-  DEPLOY_SERVER: "1"
-  DEPLOY_MONGO: "1"
+  DEPLOY_SERVER: "0"
+  DEPLOY_MONGO: "0"
   SERVER_DEV_REPLICAS: "1"
   SERVER_PROD_REPLICAS: "2"
   MONGO_DEV_REPLICAS: "2"
@@ -109,7 +109,7 @@ build_server_staging:
     - cd manifests/
     - sed -i "s+EMAIL_ADDRESS+$EMAIL_ADDRESS+g" ./cert-issuer.yaml
     - sed -i "s+ENV+$ENV+g" ./cert-issuer.yaml
-    - sed -i "s+DOMAIN+$DOMAIN+g"./certificate.yaml
+    - sed -i "s+DOMAIN+$DOMAIN+g" ./certificate.yaml
     - sed -i "s+ENV+$ENV+g" ./certificate.yaml
     - kubectl apply -f ./certificate.yaml
     - kubectl apply -f ./cert-issuer.yaml
