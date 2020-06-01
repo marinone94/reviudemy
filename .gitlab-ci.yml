@@ -1,6 +1,6 @@
 stages:
   - init # docker registry
-  - local_test
+  - local_test # run local unit tests 
   - build_dev # build docker images for dev environment
   - build_staging # build docker images for staging environment
   - pre_dev # ingress
@@ -8,16 +8,16 @@ stages:
   - test_dev # here you will add some automatic tests
   - pre_staging # ingress staging
   - deploy_staging # service and deployment staging environment
-  - test_staging
-  - pre_prod
-  - deploy_prod
-  - post_prod
+  - test_staging # run all tests
+  - pre_prod # deploy ingress prod 
+  - deploy_prod # deploy prod
+  - post_prod # monitor/test prod env and update stable image in the registry
 
 image: alpine
 
 variables:
   DOMAIN: $KUBE_INGRESS_BASE_DOMAIN
-  SET_REGISTRY: "1"
+  SET_REGISTRY: "0"
   DEPLOY_INGRESS: "1"
   DEPLOY_SERVER: "1"
   DEPLOY_MONGO: "1"
@@ -87,6 +87,8 @@ local_test_staging:
   <<: *local_test_anchor
   environment:
     name: staging
+  before_script:
+    - echo $CI_MERGE_REQUEST_ID
   rules:
     - if: $CI_COMMIT_BRANCH !~ 'master'
       when: never
